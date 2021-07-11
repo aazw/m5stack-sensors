@@ -24,12 +24,17 @@ const unsigned int coordinate_x_unit = 240;
 void setup() {
   M5.begin(true, false, true, true);
   init();
+  Serial.println("");
 }
 
 void init() {
+  M5.Speaker.begin();
+  M5.Speaker.mute(); // remove speaker noise at redraw lcd
+
   init_lcd();
   init_sgp30();
   init_bmp280();
+  init_sht30();
 }
 
 void init_lcd() {
@@ -55,7 +60,7 @@ void wait_sgp30() {
   while (millis() - last_millis < 15000L) {
     delay(1); // avoid reset by esp32 watchdog timer
   }
-  
+
   M5.Lcd.setTextDatum(TC_DATUM);
 }
 
@@ -85,13 +90,6 @@ void loop() {
     initialized = true;
   }
 
-  // SGP30
-  if (!sgp30.IAQmeasure()) {
-    return;
-  }
-  sgp30_tvoc = sgp30.TVOC;
-  sgp30_eco2 = sgp30.eCO2;
-
   // BMP280
   bmp280_pressure = bmp280.readPressure();
   bmp280_temperature = bmp280.readTemperature();
@@ -99,8 +97,21 @@ void loop() {
   // SHT30
   read_sht30();
 
+  // SGP30
+  sgp30.setHumidity(get_absolute_humidity(sht30_temperature, sht30_humidity));
+
+  if (!sgp30.IAQmeasure()) {
+    return;
+  }
+  sgp30_tvoc = sgp30.TVOC;
+  sgp30_eco2 = sgp30.eCO2;
+
+
   // Display
   draw_sampling_results();
+
+  // Print
+  print_sampling_results();
 
   delay(3000);
 }
@@ -142,6 +153,43 @@ void draw_sampling_results() {
   M5.Lcd.drawString("%",                coordinate_x_unit,  200 + offset, font_type);
 }
 
+
+void print_sampling_results() {
+
+  // SGP30 TVOC
+  char sgp30_tvoc_buf[20];
+  sprintf(sgp30_tvoc_buf, "TVOC: %d ppb", sgp30_tvoc);
+  Serial.println(sgp30_tvoc_buf);
+
+  // SGP30 CO2
+  char sgp30_eco2_buf[20];
+  sprintf(sgp30_eco2_buf, "eCO2: %d ppm", sgp30_eco2);
+  Serial.println(sgp30_eco2_buf);
+
+  // BMP280 Pressure
+  char bmp280_pressure_buf[20];
+  sprintf(bmp280_pressure_buf, "PRES: %0.2f hPa", bmp280_pressure / 100.0);
+  Serial.println(bmp280_pressure_buf);
+
+  // BMP280 Temperature
+  char bmp280_temperature_buf[20];
+  sprintf(bmp280_temperature_buf, "TMP1: %0.2f degrees", bmp280_temperature);
+  Serial.println(bmp280_temperature_buf);
+
+
+  // SHT30 Temperature
+  char sht30_temperature_buf[20];
+  sprintf(sht30_temperature_buf, "TMP2: %0.2f degrees", sht30_temperature);
+  Serial.println(sht30_temperature_buf);
+
+  // SHT30 Humidity
+  char sht30_humidity_buf[20];
+  sprintf(sht30_humidity_buf, "HUMD: %0.2f %%", sht30_humidity);
+  Serial.println(sht30_humidity_buf);
+
+  Serial.println("");
+}
+
 void init_sht30() {
   // nothing to do
 }
@@ -163,4 +211,10 @@ void read_sht30() {
 
   sht30_temperature = ((((data[0] * 256.0) + data[1]) * 175) / 65535.0) - 45;
   sht30_humidity = ((((data[3] * 256.0) + data[4]) * 100) / 65535.0);
+}
+
+uint32_t get_absolute_humidity(float temperature, float humidity) {
+  float absolute_humidity = 216.7f * ((humidity / 100.0f) * 6.112f * exp((17.62f * temperature) / (243.12f + temperature)) / (273.15f + temperature));
+  uint32_t absolute_humidity_scaled = static_cast<uint32_t>(1000.0f * absolute_humidity);
+  return absolute_humidity_scaled;
 }
