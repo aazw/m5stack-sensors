@@ -14,10 +14,9 @@ float bmp280_temperature = 0.0;
 float sht30_temperature = 0.0;
 float sht30_humidity = 0.0;
 
+TFT_eSprite sprite = TFT_eSprite(&M5.Lcd);
 const byte font_type = 4;
-
 const unsigned int offset = 5;
-
 const unsigned int coordinate_x_value = 140;
 const unsigned int coordinate_x_unit = 240;
 
@@ -28,8 +27,13 @@ void setup() {
 }
 
 void init() {
+  // init sprite
+  sprite.setColorDepth(8);
+  sprite.createSprite(320, 240);
+
+  // disable speaker (remove speaker noise at redrawing lcd)
   M5.Speaker.begin();
-  M5.Speaker.mute(); // remove speaker noise at redraw lcd
+  M5.Speaker.mute();
 
   init_lcd();
   init_sgp30();
@@ -71,14 +75,17 @@ void init_bmp280() {
 }
 
 void reset_display() {
-  M5.Lcd.fillScreen(TFT_BLACK);
+  sprite.fillScreen(TFT_BLACK);
+  sprite.setTextSize(1);
+  sprite.setTextColor(TFT_WHITE, TFT_BLACK);
+  sprite.setTextDatum(TC_DATUM);
 
-  M5.Lcd.drawString("TVOC:", 50,   0 + offset, font_type);
-  M5.Lcd.drawString("eCO2:", 50,  40 + offset, font_type);
-  M5.Lcd.drawString("PRES:", 50,  80 + offset, font_type);
-  M5.Lcd.drawString("TMP1:", 50, 120 + offset, font_type);
-  M5.Lcd.drawString("TMP2:", 50, 160 + offset, font_type);
-  M5.Lcd.drawString("HUMD:", 50, 200 + offset, font_type);
+  sprite.drawString("TVOC:", 50,   0 + offset, font_type);
+  sprite.drawString("eCO2:", 50,  40 + offset, font_type);
+  sprite.drawString("PRES:", 50,  80 + offset, font_type);
+  sprite.drawString("TMP1:", 50, 120 + offset, font_type);
+  sprite.drawString("TMP2:", 50, 160 + offset, font_type);
+  sprite.drawString("HUMD:", 50, 200 + offset, font_type);
 }
 
 bool initialized = false;
@@ -106,7 +113,6 @@ void loop() {
   sgp30_tvoc = sgp30.TVOC;
   sgp30_eco2 = sgp30.eCO2;
 
-
   // Display
   draw_sampling_results();
 
@@ -116,43 +122,43 @@ void loop() {
   delay(3000);
 }
 
-
 void draw_sampling_results() {
-  M5.Lcd.fillRect(100, 0, 220, 240, TFT_BLACK);
+  sprite.fillRect(100, 0, 220, 240, TFT_BLACK);
 
   // SGP30 TVOC
-  M5.Lcd.drawNumber(sgp30_tvoc, coordinate_x_value, 0 + offset, font_type);
-  M5.Lcd.drawString("ppb",      coordinate_x_unit,  0 + offset, font_type);
+  sprite.drawNumber(sgp30_tvoc, coordinate_x_value, 0 + offset, font_type);
+  sprite.drawString("ppb",      coordinate_x_unit,  0 + offset, font_type);
 
   // SGP30 CO2
-  M5.Lcd.drawNumber(sgp30_eco2, coordinate_x_value, 40 + offset, font_type);
-  M5.Lcd.drawString("ppm",      coordinate_x_unit,  40 + offset, font_type);
+  sprite.drawNumber(sgp30_eco2, coordinate_x_value, 40 + offset, font_type);
+  sprite.drawString("ppm",      coordinate_x_unit,  40 + offset, font_type);
 
   // BMP280 Pressure
   char bmp280_pressure_buf[20];
   sprintf(bmp280_pressure_buf, "%0.2f", bmp280_pressure / 100.0);
-  M5.Lcd.drawString(bmp280_pressure_buf, coordinate_x_value, 80 + offset, font_type);
-  M5.Lcd.drawString("hPa",               coordinate_x_unit,  80 + offset, font_type);
+  sprite.drawString(bmp280_pressure_buf, coordinate_x_value, 80 + offset, font_type);
+  sprite.drawString("hPa",               coordinate_x_unit,  80 + offset, font_type);
 
   // BMP280 Temperature
   char bmp280_temperature_buf[20];
   sprintf(bmp280_temperature_buf, "%0.2f", bmp280_temperature);
-  M5.Lcd.drawString(bmp280_temperature_buf, coordinate_x_value, 120 + offset, font_type);
-  M5.Lcd.drawString("degrees",              coordinate_x_unit,  120 + offset, font_type);
+  sprite.drawString(bmp280_temperature_buf, coordinate_x_value, 120 + offset, font_type);
+  sprite.drawString("degrees",              coordinate_x_unit,  120 + offset, font_type);
 
   // SHT30 Temperature
   char sht30_temperature_buf[20];
   sprintf(sht30_temperature_buf, "%0.2f", sht30_temperature);
-  M5.Lcd.drawString(sht30_temperature_buf, coordinate_x_value, 160 + offset, font_type);
-  M5.Lcd.drawString("degrees",             coordinate_x_unit,  160 + offset, font_type);
+  sprite.drawString(sht30_temperature_buf, coordinate_x_value, 160 + offset, font_type);
+  sprite.drawString("degrees",             coordinate_x_unit,  160 + offset, font_type);
 
   // SHT30 Humidity
   char sht30_humidity_buf[20];
   sprintf(sht30_humidity_buf, "%0.2f", sht30_humidity);
-  M5.Lcd.drawString(sht30_humidity_buf, coordinate_x_value, 200 + offset, font_type);
-  M5.Lcd.drawString("%",                coordinate_x_unit,  200 + offset, font_type);
-}
+  sprite.drawString(sht30_humidity_buf, coordinate_x_value, 200 + offset, font_type);
+  sprite.drawString("%",                coordinate_x_unit,  200 + offset, font_type);
 
+  sprite.pushSprite(0, 0);
+}
 
 void print_sampling_results() {
 
@@ -175,7 +181,6 @@ void print_sampling_results() {
   char bmp280_temperature_buf[20];
   sprintf(bmp280_temperature_buf, "TMP1: %0.2f degrees", bmp280_temperature);
   Serial.println(bmp280_temperature_buf);
-
 
   // SHT30 Temperature
   char sht30_temperature_buf[20];
