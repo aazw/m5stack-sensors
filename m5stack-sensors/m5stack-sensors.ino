@@ -1,5 +1,6 @@
 #include <M5Stack.h>
 #include <Wire.h>
+#include <ArduinoJson.h>
 #include "Adafruit_Sensor.h"
 #include "Adafruit_BMP280.h"
 #include "Adafruit_SGP30.h"
@@ -22,6 +23,9 @@ const unsigned int coordinate_x_unit = 240;
 
 void setup() {
   M5.begin(true, false, true, true);
+  M5.Power.setPowerVin(true);
+  // Serial.begin(115200);
+  Serial2.begin(115200, SERIAL_8N1, 16, 17);
   init();
   Serial.println("");
 }
@@ -118,6 +122,9 @@ void loop() {
 
   // Print
   print_sampling_results();
+
+  // Print to Serial2
+  printSerial2();
 
   delay(3000);
 }
@@ -222,4 +229,17 @@ uint32_t get_absolute_humidity(float temperature, float humidity) {
   float absolute_humidity = 216.7f * ((humidity / 100.0f) * 6.112f * exp((17.62f * temperature) / (243.12f + temperature)) / (273.15f + temperature));
   uint32_t absolute_humidity_scaled = static_cast<uint32_t>(1000.0f * absolute_humidity);
   return absolute_humidity_scaled;
+}
+
+void printSerial2() {
+  DynamicJsonDocument doc(1024);
+
+  doc["tvoc[ppb]"] = sgp30_tvoc;
+  doc["eco2[ppm]"] = sgp30_eco2;
+  doc["pressure[hPa]"] = bmp280_pressure / 100.0;
+  doc["temperature1[degrees]"] = bmp280_temperature;
+  doc["temperature2[degrees]"] = sht30_temperature;
+  doc["humidity[%]"] = sht30_humidity;
+
+  serializeJson(doc, Serial2);
 }
