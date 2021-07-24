@@ -69,6 +69,9 @@ void wait_sgp30() {
     delay(1); // avoid reset by esp32 watchdog timer
   }
 
+  // baseline
+  sgp30.setIAQBaseline(0x8F96, 0x9792);
+
   M5.Lcd.setTextDatum(TC_DATUM);
 }
 
